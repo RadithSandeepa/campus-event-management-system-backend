@@ -86,44 +86,64 @@ export const changePassword = async (req, res) => {
 
 //UPLOAD PROFILE PIC
 export const uploadProfilePic = async (req, res) => {
-    try {
-      const file = req.file;
-  
-      if (!file) {
-        return res.status(400).json({ message: "No file uploaded" });
-      }
-  
-      const fileName = `profiles/${Date.now()}_${file.originalname}`;
-  
-      const fileUpload = bucket.file(fileName);
-  
+  try {
+    const file = req.file;
+
+    if (!file) {
+      return res.status(400).json({
+        message: "No file uploaded",
+      });
+    }
+
+    const fileExtension = file.originalname.split(".").pop();
+
+    const fileName = `profiles/${req.user.id}_${Date.now()}.${fileExtension}`;
+
+    const fileUpload = bucket.file(fileName);
+
+    await new Promise((resolve, reject) => {
       const stream = fileUpload.createWriteStream({
         metadata: {
           contentType: file.mimetype,
         },
+        resumable: false
       });
-  
-      stream.on("error", (err) => {
-        res.status(500).json({ message: err.message });
-      });
-  
-      stream.on("finish", async () => {
-        await fileUpload.makePublic();
-  
-        const publicUrl = `https://storage.googleapis.com/${bucket.name}/${fileName}`;
-  
-        const user = await User.findById(req.user.id);
-        user.profilePic = publicUrl;
-        await user.save();
-  
-        res.json({
-          message: "Uploaded successfully",
-          url: publicUrl,
-        });
-      });
-  
+
+      stream.on("error", reject);
+
+      stream.on("finish", resolve);
+
       stream.end(file.buffer);
-    } catch (err) {
-      res.status(500).json({ message: err.message });
+    });
+
+    // Generate signed URL
+    const [url] = await fileUpload.getSignedUrl({
+      action: "read",
+      expires: "03-01-2500",
+    });
+
+    const user = await User.findById(req.user.id);
+
+    if (!user) {
+      return res.status(404).json({
+        message: "User not found",
+      });
     }
+
+    user.profilePic = url;
+
+    await user.save();
+
+    res.status(200).json({
+      message: "Profile picture uploaded successfully",
+      url,
+    });
+
+  } catch (err) {
+    console.error(err);
+
+    res.status(500).json({
+      message: err.message,
+    });
+  }
 };

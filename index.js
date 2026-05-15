@@ -1,14 +1,14 @@
 import express from "express";
 import mongoose from "mongoose";
 import cors from "cors";
-import dotenv from "dotenv";
+// import dotenv from "dotenv";
 
 import authRoutes from "./routes/authRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
 import eventRoutes from "./routes/eventRoutes.js";
 import { seedAdmin } from "./seed/seedAdmin.js";
 
-dotenv.config();
+// dotenv.config();
 
 const app = express();
 
